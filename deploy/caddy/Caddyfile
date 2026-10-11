@@ -1,0 +1,7 @@
+# Front door for every client bot: HTTPS (free Let's Encrypt certificates, renewed automatically)
+# and routing by hostname. One file per client lives in sites/, written by new-client.sh.
+{
+	email {$ACME_EMAIL}
+}
+
+import sites/*.caddy

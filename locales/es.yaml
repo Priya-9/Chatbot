@@ -1,0 +1,62 @@
+_meta:
+  name: Español
+  english_name: Spanish
+
+language:
+  prompt: "🌐 Elige tu idioma."
+  button: Idiomas
+  set: "Idioma cambiado a español ✅"
+
+menu:
+  welcome: "Hola {name} 👋 ¡Bienvenido a *{business}*! Soy tu asistente virtual, disponible 24/7."
+  prompt: "¿En qué puedo ayudarte? También puedes escribir tu pregunta directamente."
+  button: Opciones
+  ask_ai: Hacer una pregunta
+  ask_ai_desc: Respuestas al instante de nuestra IA
+  book_demo: Reservar una demo
+  book_demo_desc: Una presentación personalizada
+  account: Mi cuenta
+  account_desc: Plan y estado (requiere verificación)
+  human: Hablar con una persona
+  human_desc: Chatea con nuestro equipo de soporte
+  language: Cambiar idioma
+  language_desc: English, Español, हिन्दी, العربية
+
+common:
+  invalid_option: "Perdona, no te he entendido. Elige una de las opciones."
+  error: "Algo salió mal por nuestra parte 😕 Inténtalo de nuevo en un momento."
+  text_only: "Por ahora solo puedo leer mensajes de texto. Escribe tu mensaje, por favor."
+
+ai:
+  intro: "Pregúntame lo que quieras sobre *{business}*: precios, funciones, políticas… Escribe *menú* para volver."
+  refusal: "No puedo ayudarte con eso. Escribe *humano* para hablar con nuestro equipo."
+  unavailable: "Nuestro asistente no está disponible ahora. Inténtalo más tarde o escribe *humano* para hablar con el equipo."
+
+lead:
+  ask_name: "¡Buena elección! 🎉 ¿Cuál es tu nombre completo?"
+  ask_email: "¡Gracias! ¿Cuál es tu correo electrónico de trabajo?"
+  ask_interest: "¿Qué te gustaría ver en la demo? (con una o dos líneas basta)"
+  thanks: "¡Listo, {lead_name}! ✅ Nuestro equipo escribirá a {email} en un día hábil para agendar tu demo."
+
+validation:
+  nonempty: "Escribe una respuesta, por favor."
+  email: "Ese correo no parece válido. Inténtalo de nuevo."
+  phone: "Ese número no parece válido. Inténtalo de nuevo."
+  otp: "Introduce el código de 6 dígitos que te enviamos por correo."
+
+auth:
+  ask_email: "🔒 Para proteger tu cuenta, escribe el correo electrónico registrado con nosotros."
+  otp_sent: "Hemos enviado un código de 6 dígitos a {email_masked}. Escríbelo aquí."
+  not_found: "No encontramos ninguna cuenta con ese correo. Escribe *humano* si necesitas ayuda."
+  invalid_code: "El código es incorrecto. Intentos restantes: {left}. Inténtalo de nuevo."
+  expired: "El código ha caducado o ya no es válido. Empieza de nuevo desde el menú."
+  too_many: "Demasiados intentos fallidos. Empieza de nuevo desde el menú."
+  success: "Verificado ✅"
+  logged_out: "Has cerrado sesión."
+
+account:
+  summary: "*Tu cuenta*\nNombre: {customer_name}\nCorreo: {email}\nPlan: {plan}\nEstado: {status}"
+
+handoff:
+  started: "👩‍💼 He avisado a nuestro equipo: un agente te responderá aquí en breve. Escribe *bot* para volver al asistente."
+  ended: "Has vuelto con el asistente virtual 🤖"

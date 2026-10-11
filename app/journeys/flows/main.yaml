@@ -1,0 +1,127 @@
+# Pre-set conversational journey.
+# Text values are translation keys from locales/<lang>.yaml. See app/journeys/engine.py for node types.
+# Customise per client: add nodes, reorder the menu, or point actions at new Python functions.
+
+start: language        # first contact: pick a language
+home: main_menu        # where "menu" and dead-ends lead
+auth_node: auth_email  # entry point for nodes marked requires_auth
+
+# Typed keywords that jump anywhere in the journey (exact, case-insensitive match).
+commands:
+  - keywords: [menu, start, hi, hello, hola, menú, inicio, मेनू, नमस्ते, القائمة, مرحبا]
+    goto: main_menu
+  - keywords: [language, idioma, भाषा, اللغة]
+    goto: language
+  - keywords: [human, agent, humano, agente, एजेंट, موظف]
+    goto: handoff
+  - keywords: [logout, sign out, cerrar sesión, लॉगआउट, خروج]
+    goto: logout
+
+# While a human agent owns the chat the bot stays silent; these words hand the chat back to the bot.
+resume_keywords: [bot, menu, robot, menú, बॉट, روبوت]
+
+nodes:
+  language:
+    type: language_select
+    text: language.prompt
+    button: language.button
+    next: welcome
+
+  welcome:
+    type: message
+    text: menu.welcome
+    next: main_menu
+
+  main_menu:
+    type: menu
+    text: menu.prompt
+    button: menu.button
+    fallback: ai_chat   # typing a question at the menu goes straight to the AI
+    options:
+      - {id: ask_ai,    label: menu.ask_ai,    description: menu.ask_ai_desc,    next: ai_chat_intro}
+      - {id: book_demo, label: menu.book_demo, description: menu.book_demo_desc, next: lead_name}
+      - {id: account,   label: menu.account,   description: menu.account_desc,   next: account}
+      - {id: human,     label: menu.human,     description: menu.human_desc,     next: handoff}
+      - {id: language,  label: menu.language,  description: menu.language_desc,  next: language}
+
+  # --- AI assistant (RAG) -------------------------------------------------
+  ai_chat_intro:
+    type: message
+    text: ai.intro
+    next: ai_chat
+
+  ai_chat:
+    type: ai
+
+  # --- Lead capture -> CRM ------------------------------------------------
+  lead_name:
+    type: input
+    text: lead.ask_name
+    save_as: lead_name
+    validate: nonempty
+    next: lead_email
+
+  lead_email:
+    type: input
+    text: lead.ask_email
+    save_as: lead_email
+    validate: email
+    next: lead_interest
+
+  lead_interest:
+    type: input
+    text: lead.ask_interest
+    save_as: lead_interest
+    validate: nonempty
+    next: lead_submit
+
+  lead_submit:
+    type: action
+    action: crm.create_lead
+    on_success: main_menu
+    on_failure: main_menu
+
+  # --- Authenticated area -------------------------------------------------
+  account:
+    type: action
+    action: account.summary
+    requires_auth: true
+    on_success: main_menu
+    on_failure: main_menu
+
+  # --- OTP authentication -------------------------------------------------
+  auth_email:
+    type: input
+    text: auth.ask_email
+    save_as: auth_email
+    validate: email
+    next: auth_send
+
+  auth_send:
+    type: action
+    action: auth.send_otp
+    on_success: auth_code
+    on_failure: main_menu
+
+  auth_code:
+    type: input          # prompt already sent by auth.send_otp
+    save_as: auth_code
+    validate: otp
+    next: auth_verify
+
+  auth_verify:
+    type: action
+    action: auth.verify_otp
+    on_success: _return  # back to the node that required auth
+    on_failure: auth_code
+    on_abort: main_menu  # expired / too many attempts
+
+  logout:
+    type: action
+    action: auth.logout
+    on_success: main_menu
+
+  # --- Human handoff ------------------------------------------------------
+  handoff:
+    type: action
+    action: handoff.start   # bot goes quiet until an agent releases the chat or the user types "bot"

@@ -1,0 +1,62 @@
+_meta:
+  name: English
+  english_name: English
+
+language:
+  prompt: "🌐 Please choose your language."
+  button: Languages
+  set: "Language set to English ✅"
+
+menu:
+  welcome: "Hi {name} 👋 Welcome to *{business}*! I'm your virtual assistant, available 24/7."
+  prompt: "What can I help you with? You can also just type your question."
+  button: Options
+  ask_ai: Ask a question
+  ask_ai_desc: Instant answers from our AI assistant
+  book_demo: Book a demo
+  book_demo_desc: Get a personalised walkthrough
+  account: My account
+  account_desc: Plan and status (verification needed)
+  human: Talk to a human
+  human_desc: Chat with our support team
+  language: Change language
+  language_desc: English, Español, हिन्दी, العربية
+
+common:
+  invalid_option: "Sorry, I didn't catch that. Please pick one of the options."
+  error: "Something went wrong on our side 😕 Please try again in a moment."
+  text_only: "I can only read text messages for now. Please type your message."
+
+ai:
+  intro: "Ask me anything about *{business}* — pricing, features, policies… Type *menu* anytime to go back."
+  refusal: "I'm not able to help with that one. Type *human* to reach our team."
+  unavailable: "Our assistant is unavailable right now. Please try again shortly or type *human* to reach our team."
+
+lead:
+  ask_name: "Great choice! 🎉 What's your full name?"
+  ask_email: "Thanks! What's your work email address?"
+  ask_interest: "What would you like to see in the demo? (a line or two is fine)"
+  thanks: "You're all set, {lead_name} ✅ Our team will email {email} within one business day to schedule your demo."
+
+validation:
+  nonempty: "Please type a reply."
+  email: "That doesn't look like a valid email address. Please try again."
+  phone: "That doesn't look like a valid phone number. Please try again."
+  otp: "Please enter the 6-digit code from your email."
+
+auth:
+  ask_email: "🔒 To protect your account, please enter the email address registered with us."
+  otp_sent: "We've emailed a 6-digit code to {email_masked}. Please type it here."
+  not_found: "We couldn't find an account with that email. Type *human* if you need help."
+  invalid_code: "That code is incorrect. Attempts left: {left}. Please try again."
+  expired: "That code has expired or is no longer valid. Please start again from the menu."
+  too_many: "Too many incorrect attempts. Please start again from the menu."
+  success: "Verified ✅"
+  logged_out: "You've been signed out."
+
+account:
+  summary: "*Your account*\nName: {customer_name}\nEmail: {email}\nPlan: {plan}\nStatus: {status}"
+
+handoff:
+  started: "👩‍💼 I've notified our team — a human agent will reply here shortly. Type *bot* to return to the assistant."
+  ended: "You're back with the virtual assistant 🤖"

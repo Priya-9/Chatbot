@@ -1,0 +1,6 @@
+# Scripts and configs run on Linux servers: always LF line endings
+*.sh text eol=lf
+Caddyfile text eol=lf
+*.yml text eol=lf
+*.template text eol=lf
+*.env.example text eol=lf

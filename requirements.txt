@@ -1,0 +1,15 @@
+fastapi>=0.142,<1
+uvicorn[standard]>=0.54
+pydantic[email]>=2.13
+pydantic-settings>=2.15
+sqlalchemy>=2.1
+httpx>=0.28
+anthropic>=1.11,<2
+pyyaml>=6.0
+pyjwt>=2.15
+pypdf>=6.0
+python-multipart>=0.0.32
+psycopg[binary]>=3.2      # PostgreSQL driver (DATABASE_URL=postgresql+psycopg://...)
+
+# Optional: semantic vector search (RAG_BACKEND=chroma)
+# chromadb>=1.0

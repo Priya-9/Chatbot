@@ -1,0 +1,62 @@
+# One client's bot: the shared ai2-bot image + this client's own files, settings and database.
+# Copied to /opt/bots/clients/<client-id>/ by new-client.sh. ${...} values come from .env in this folder.
+services:
+  app:
+    image: ai2-bot:${IMAGE_TAG:-latest}
+    env_file:
+      - ../../shared.env   # server-wide defaults (SMTP)
+      - .env               # this client's settings; overrides shared.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://bot:${DB_PASSWORD}@db:5432/bot
+      ENVIRONMENT: production
+      # Client-specific content, mounted over the shared code:
+      KNOWLEDGE_DIR: /app/client/knowledge
+      LOCALES_DIR: /app/client/locales
+      JOURNEY_FILE: /app/client/flows/main.yaml
+      SYSTEM_PROMPT_FILE: /app/client/system_prompt.md
+      RAG_REINDEX_ON_STARTUP: "true"
+      CHROMA_PATH: /app/data/chroma
+    volumes:
+      - ./knowledge:/app/client/knowledge        # writable: admin API uploads land here
+      - ./locales:/app/client/locales:ro
+      - ./flows:/app/client/flows:ro
+      - ./system_prompt.md:/app/client/system_prompt.md:ro
+      - appdata:/app/data
+    networks:
+      web:
+        aliases: ["bot-${CLIENT_ID}"]   # Caddy proxies to bot-<client-id>:8000
+      internal: {}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: bot
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: bot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bot"]
+      interval: 5s
+      retries: 10
+    networks: [internal]   # never reachable from the internet or other clients
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+networks:
+  web:
+    external: true
+  internal: {}
+
+volumes:
+  pgdata:
+  appdata:
