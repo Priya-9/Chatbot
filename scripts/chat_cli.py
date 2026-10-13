@@ -2,6 +2,7 @@
 
     python scripts/chat_cli.py                 # uses LLM_PROVIDER (needs GROQ_API_KEY or ANTHROPIC_API_KEY)
     python scripts/chat_cli.py --offline       # no API key: AI replies show the retrieved RAG excerpts
+    python scripts/chat_cli.py --demo          # sales demo: pick a business niche first (demo/niches.yaml)
 
 Tap a button by typing its title or number (e.g. "1"). Type /quit to exit, /reset to start over.
 OTP codes are printed in the log (no SMTP needed in development).
@@ -9,11 +10,17 @@ OTP codes are printed in the log (no SMTP needed in development).
 
 import argparse
 import logging
+import os
 import sys
 import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+if "--demo" in sys.argv:  # must happen before anything reads the settings
+    from app.demo import DEMO_ENV  # noqa: E402
+
+    os.environ.update(DEMO_ENV)
 
 from sqlalchemy import select  # noqa: E402
 
@@ -39,6 +46,7 @@ class OfflineLLM:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--offline", action="store_true", help="don't call the LLM")
+    parser.add_argument("--demo", action="store_true", help="sales-demo mode (see app/demo)")
     parser.add_argument("--phone", default="15550001111", help="simulated WhatsApp number")
     parser.add_argument("--name", default="Alex")
     args = parser.parse_args()

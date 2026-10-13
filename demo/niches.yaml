@@ -1,0 +1,156 @@
+# Business niches offered in the sales demo (first question the bot asks).
+#
+# Each niche = one entry here + a folder demo/knowledge/<id>/ with its knowledge base (.md/.txt/.pdf).
+# Retrieval only searches the chosen niche's folder (plus any files directly in demo/knowledge/).
+#
+# Fields
+#   id            folder name under demo/knowledge (or set `knowledge: <folder>`)
+#   title         list row title, max 24 characters      } plain text, or a map per language:
+#   description   list row subtitle, max 72 characters   }   {en: "...", hi: "..."}
+#   business      sample business name the bot plays
+#   aliases       words that select this niche when typed ("I run a dental clinic" -> clinic)
+#   booking       label (menu row, max 24 chars), ask_detail and ask_when (questions in the booking flow)
+#   examples      2-3 questions shown to the visitor to try; pick ones the knowledge base answers well
+#
+# WhatsApp lists show at most 10 rows: keep 10 niches or fewer (extra ones are reachable by alias only).
+
+niches:
+  - id: clinic
+    title: {en: Clinic / Dental, hi: क्लिनिक / डेंटल}
+    description: {en: "Doctors, dentists, skin & physio clinics", hi: "डॉक्टर, डेंटिस्ट, स्किन और फिज़ियो क्लिनिक"}
+    business: SmileCare Dental & Skin Clinic
+    aliases: [clinic, dental, dentist, doctor, hospital, skin, derma, physio, physiotherapy, medical, diagnostic, lab, क्लिनिक, डॉक्टर]
+    booking:
+      label: {en: Book appointment, hi: अपॉइंटमेंट बुक करें}
+      ask_detail: {en: "Which treatment or doctor do you need? (e.g. _teeth cleaning_, _root canal_, _skin consultation_)", hi: "आपको कौन सा ट्रीटमेंट या डॉक्टर चाहिए? (जैसे _दाँतों की सफ़ाई_, _रूट कैनाल_, _स्किन कंसल्टेशन_)"}
+      ask_when: {en: "Which day and time suits you? (e.g. _Saturday 11 am_)", hi: "कौन सा दिन और समय आपके लिए ठीक है? (जैसे _शनिवार सुबह 11 बजे_)"}
+    examples:
+      - How much does a root canal cost?
+      - Is the clinic open on Sunday?
+      - Kya aap EMI pe braces karte ho?
+
+  - id: salon
+    title: {en: Salon & Spa, hi: सैलून और स्पा}
+    description: {en: "Hair, beauty, bridal makeup, nails & spa", hi: "हेयर, ब्यूटी, ब्राइडल मेकअप, नेल्स और स्पा"}
+    business: Glow Studio Unisex Salon
+    aliases: [salon, spa, parlour, parlor, beauty, makeup, hair, nails, barber, bridal, सैलून, पार्लर]
+    booking:
+      label: {en: Book a slot, hi: स्लॉट बुक करें}
+      ask_detail: {en: "Which service would you like? (e.g. _haircut_, _keratin_, _bridal makeup_)", hi: "कौन सी सर्विस चाहिए? (जैसे _हेयरकट_, _केराटिन_, _ब्राइडल मेकअप_)"}
+      ask_when: {en: "Preferred day and time? (e.g. _tomorrow 5 pm_)", hi: "कौन सा दिन और समय? (जैसे _कल शाम 5 बजे_)"}
+    examples:
+      - What's the price for keratin treatment?
+      - Do you do bridal makeup at home?
+      - Any offers this week?
+
+  - id: restaurant
+    title: {en: Restaurant / Cafe, hi: रेस्टोरेंट / कैफ़े}
+    description: {en: "Restaurants, cafes, cloud kitchens, bakeries", hi: "रेस्टोरेंट, कैफ़े, क्लाउड किचन, बेकरी"}
+    business: The Spice Route Kitchen
+    aliases: [restaurant, cafe, café, food, kitchen, bakery, dhaba, catering, hotel food, रेस्टोरेंट, खाना]
+    booking:
+      label: {en: Reserve a table, hi: टेबल बुक करें}
+      ask_detail: {en: "How many guests, and any occasion or preference? (e.g. _4 people, birthday, outdoor_)", hi: "कितने लोग, और कोई ख़ास मौका या पसंद? (जैसे _4 लोग, बर्थडे, आउटडोर_)"}
+      ask_when: {en: "Which date and time? (e.g. _Friday 8:30 pm_)", hi: "कौन सी तारीख़ और समय? (जैसे _शुक्रवार रात 8:30_)"}
+    examples:
+      - Do you have Jain food options?
+      - What's in the weekend lunch buffet?
+      - Do you deliver to Koramangala?
+
+  - id: real_estate
+    title: {en: Real Estate, hi: रियल एस्टेट}
+    description: {en: "Builders, property agents, rentals & PG", hi: "बिल्डर, प्रॉपर्टी एजेंट, किराया और PG"}
+    business: Skyline Homes Realty
+    aliases: [real estate, realestate, property, properties, builder, broker, flat, flats, plots, rental, rent, pg, apartment, प्रॉपर्टी, फ्लैट]
+    booking:
+      label: {en: Book a site visit, hi: साइट विज़िट बुक करें}
+      ask_detail: {en: "Which project or type of property? (e.g. _2 BHK at Skyline Greens_, _plot_)", hi: "कौन सा प्रोजेक्ट या प्रॉपर्टी? (जैसे _Skyline Greens में 2 BHK_, _प्लॉट_)"}
+      ask_when: {en: "When would you like to visit? (e.g. _Sunday morning_)", hi: "आप कब विज़िट करना चाहेंगे? (जैसे _रविवार सुबह_)"}
+    examples:
+      - What's the price of a 2 BHK?
+      - Is the project RERA approved?
+      - Do you help with home loans?
+
+  - id: coaching
+    title: {en: Coaching / Education, hi: कोचिंग / शिक्षा}
+    description: {en: "Coaching centres, tuition, schools, online courses", hi: "कोचिंग सेंटर, ट्यूशन, स्कूल, ऑनलाइन कोर्स"}
+    business: BrightPath Academy
+    aliases: [coaching, tuition, tutor, school, institute, academy, education, classes, course, courses, jee, neet, ielts, कोचिंग, ट्यूशन]
+    booking:
+      label: {en: Book a free demo class, hi: फ्री डेमो क्लास बुक करें}
+      ask_detail: {en: "Which course and class? (e.g. _JEE, class 11_, _IELTS_)", hi: "कौन सा कोर्स और क्लास? (जैसे _JEE, कक्षा 11_, _IELTS_)"}
+      ask_when: {en: "Which day and time suits you for the demo class?", hi: "डेमो क्लास के लिए कौन सा दिन और समय ठीक रहेगा?"}
+    examples:
+      - What's the fee for the NEET batch?
+      - When does the new batch start?
+      - Are there online classes?
+
+  - id: gym
+    title: {en: Gym / Fitness / Yoga, hi: जिम / फ़िटनेस / योग}
+    description: {en: "Gyms, yoga & dance studios, personal trainers", hi: "जिम, योग और डांस स्टूडियो, पर्सनल ट्रेनर"}
+    business: IronFit Gym & Yoga Studio
+    aliases: [gym, fitness, yoga, zumba, dance, crossfit, trainer, workout, pilates, जिम, योग]
+    booking:
+      label: {en: Book a free trial, hi: फ्री ट्रायल बुक करें}
+      ask_detail: {en: "What are you interested in? (e.g. _weight loss_, _yoga_, _personal training_)", hi: "आपकी रुचि किसमें है? (जैसे _वज़न घटाना_, _योग_, _पर्सनल ट्रेनिंग_)"}
+      ask_when: {en: "When would you like to come in? (e.g. _Monday 7 am_)", hi: "आप कब आना चाहेंगे? (जैसे _सोमवार सुबह 7 बजे_)"}
+    examples:
+      - How much is the 3-month membership?
+      - Are there separate timings for ladies?
+      - Do you have a personal trainer?
+
+  - id: hotel
+    title: {en: Hotel / Homestay, hi: होटल / होमस्टे}
+    description: {en: "Hotels, resorts, homestays, banquet halls", hi: "होटल, रिज़ॉर्ट, होमस्टे, बैंक्वेट हॉल"}
+    business: Pinewood Retreat, Manali
+    aliases: [hotel, resort, homestay, stay, guesthouse, villa, banquet, lodge, airbnb, होटल]
+    booking:
+      label: {en: Check availability, hi: उपलब्धता देखें}
+      ask_detail: {en: "Which room type and how many guests? (e.g. _deluxe room, 2 adults 1 child_)", hi: "कौन सा कमरा और कितने मेहमान? (जैसे _डीलक्स रूम, 2 बड़े 1 बच्चा_)"}
+      ask_when: {en: "Check-in and check-out dates?", hi: "चेक-इन और चेक-आउट की तारीख़?"}
+    examples:
+      - What's the tariff for a deluxe room?
+      - Is breakfast included?
+      - Do you arrange pickup from the bus stand?
+
+  - id: online_store
+    title: {en: Online Store / Retail, hi: ऑनलाइन स्टोर / रिटेल}
+    description: {en: "D2C brands, shops, boutiques, electronics", hi: "D2C ब्रांड, दुकानें, बुटीक, इलेक्ट्रॉनिक्स"}
+    business: Kavya Ethnic Wear
+    aliases: [store, shop, ecommerce, e-commerce, online, retail, boutique, clothing, clothes, fashion, d2c, jewellery, electronics, दुकान, स्टोर]
+    booking:
+      label: {en: Place an order enquiry, hi: ऑर्डर पूछताछ}
+      ask_detail: {en: "Which product, size and colour? (e.g. _Anarkali kurta, M, maroon_)", hi: "कौन सा प्रोडक्ट, साइज़ और रंग? (जैसे _अनारकली कुर्ता, M, मैरून_)"}
+      ask_when: {en: "Delivery city and PIN code?", hi: "डिलीवरी शहर और पिन कोड?"}
+    examples:
+      - Do you have cash on delivery?
+      - What's your return policy?
+      - How many days for delivery to Jaipur?
+
+  - id: travel
+    title: {en: Travel Agency, hi: ट्रैवल एजेंसी}
+    description: {en: "Tour packages, visas, tickets, cab rentals", hi: "टूर पैकेज, वीज़ा, टिकट, कैब रेंटल"}
+    business: Wanderlust Holidays
+    aliases: [travel, tour, tours, trip, holiday, holidays, visa, ticket, tickets, cab, taxi, ट्रैवल, टूर]
+    booking:
+      label: {en: Get a trip quote, hi: ट्रिप कोटेशन पाएँ}
+      ask_detail: {en: "Where to and how many travellers? (e.g. _Kerala, 2 adults_)", hi: "कहाँ जाना है और कितने लोग? (जैसे _केरल, 2 लोग_)"}
+      ask_when: {en: "Travel dates? (approximate is fine)", hi: "यात्रा की तारीख़? (अंदाज़न भी चलेगा)"}
+    examples:
+      - What's the price of the Kerala 5-day package?
+      - Do you help with Dubai visa?
+      - Is the honeymoon package customisable?
+
+  - id: services
+    title: {en: Other / Local Services, hi: अन्य / लोकल सर्विस}
+    description: {en: "Repairs, cleaning, pest control, interiors, CA…", hi: "रिपेयर, सफ़ाई, पेस्ट कंट्रोल, इंटीरियर, CA…"}
+    business: QuickFix Home Services
+    aliases: [other, service, services, repair, ac, plumber, electrician, cleaning, pest, interior, carpenter, ca, accountant, अन्य, सर्विस]
+    booking:
+      label: {en: Book a service, hi: सर्विस बुक करें}
+      ask_detail: {en: "Which service do you need? (e.g. _AC service_, _deep cleaning 2 BHK_)", hi: "कौन सी सर्विस चाहिए? (जैसे _AC सर्विस_, _2 BHK डीप क्लीनिंग_)"}
+      ask_when: {en: "Preferred date, time slot and area?", hi: "पसंदीदा तारीख़, समय और एरिया?"}
+    examples:
+      - How much for AC servicing?
+      - Do you provide same-day service?
+      - Is there a warranty on repairs?

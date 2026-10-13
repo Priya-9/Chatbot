@@ -12,6 +12,8 @@ input            send `text`, wait for a reply, `validate` it, store it as `save
 action           run a registered Python action; go to `on_success` / `on_failure` (or the action's goto)
 ai               send `text` once, then answer every message with RAG + LLM
 language_select  list of supported languages; stores the choice on the user, then `next`
+niche_select     (demo mode) list of business niches from NICHES_FILE; stores the choice as `niche`, then
+                 `next`. Once chosen, every text can use {business}, {book_label}, {examples}... (app/demo)
 
 Any node may set `requires_auth: true`; unauthenticated users are sent through `auth_node` first and
 returned afterwards (the special target `_return`).
@@ -29,6 +31,8 @@ from app.whatsapp.messages import ButtonsOut, Incoming, ListOut, Outgoing, TextO
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from app.demo.niches import Niche
 
     from app.models import Message, User
     from app.services.container import Services
@@ -57,8 +61,16 @@ class Context:
     def lang(self) -> str:
         return self.services.translator.resolve(self.user.language)
 
+    @property
+    def niche(self) -> "Niche | None":
+        return self.services.niches.get((self.user.journey_data or {}).get("niche") or "")
+
     def t(self, key: str, **params) -> str:
         params.setdefault("name", self.user.name or "")
+        params.setdefault("brand", self.services.settings.business_name)
+        if self.niche:
+            for k, v in self.niche.params(self.lang).items():
+                params.setdefault(k, v)
         params.setdefault("business", self.services.settings.business_name)
         return self.services.translator.t(key, self.lang, **params)
 
@@ -162,6 +174,9 @@ class JourneyEngine:
         if ntype == "language_select":
             out.append(self._render_languages(ctx, node))
             return None
+        if ntype == "niche_select":
+            out.append(self._render_niches(ctx, node))
+            return None
         if ntype in ("input", "ai"):
             if node.get("text"):
                 out.append(TextOut(ctx.t(node["text"])))
@@ -200,6 +215,17 @@ class JourneyEngine:
                 self.goto(ctx, node["next"], out)
             else:
                 out.append(self._render_languages(ctx, node))
+
+        elif ntype == "niche_select":
+            niche = self._match_niche(ctx, inc)
+            if niche:
+                # remember where this niche's chat starts, so AI memory doesn't leak between niches
+                ctx.set_data(niche=niche.id, niche_from=ctx.inbound.id if ctx.inbound else None)
+                self.goto(ctx, node["next"], out)
+            else:
+                if text:
+                    out.append(TextOut(ctx.t("common.invalid_option")))
+                out.append(self._render_niches(ctx, node))
 
         elif ntype == "input":
             if not text:
@@ -248,6 +274,23 @@ class JourneyEngine:
             if text in names:
                 return code
         return None
+
+    def _match_niche(self, ctx: Context, inc: Incoming) -> "Niche | None":
+        niches = list(ctx.services.niches.values())
+        if inc.reply_id and inc.reply_id.startswith("niche:"):
+            return ctx.services.niches.get(inc.reply_id.removeprefix("niche:"))
+        text = (inc.text or "").strip()
+        if text.isdigit() and 1 <= int(text) <= len(niches):
+            return niches[int(text) - 1]
+        return next((n for n in niches if n.matches(text, ctx.lang)), None)
+
+    def _render_niches(self, ctx: Context, node: dict) -> Outgoing:
+        # WhatsApp lists show at most 10 rows; extra niches can still be reached by typing an alias
+        rows = [
+            (f"niche:{n.id}", n.text("title", ctx.lang), n.text("description", ctx.lang))
+            for n in ctx.services.niches.values()
+        ][:10]
+        return ListOut(ctx.t(node["text"]), ctx.t(node.get("button", "menu.button")), rows)
 
     def _render_menu(self, ctx: Context, node: dict) -> Outgoing:
         body = ctx.t(node["text"])

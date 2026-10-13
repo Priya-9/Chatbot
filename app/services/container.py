@@ -1,10 +1,11 @@
 """Wires all services together once. Tests and scripts can swap pieces via `set_services()`."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.auth.otp import AuthService
 from app.config import Settings, get_settings
 from app.crm.providers import CRMProvider, build_crm
+from app.demo.niches import Niche, load_niches
 from app.i18n.translator import Translator
 from app.journeys.actions import ACTIONS
 from app.journeys.engine import JourneyEngine
@@ -23,6 +24,7 @@ class Services:
     crm: CRMProvider
     auth: AuthService
     ai: AIAssistant
+    niches: dict[str, Niche] = field(default_factory=dict)  # demo mode only
 
 
 def build_llm(settings: Settings) -> LLM:
@@ -42,14 +44,19 @@ def build_services(settings: Settings | None = None, *, llm: LLM | None = None,
         ChromaRetriever(settings.chroma_path) if settings.rag_backend == "chroma" else BM25Retriever()
     )
     crm = crm or build_crm(settings)
+    engine = JourneyEngine.from_yaml(settings.journey_file, ACTIONS)
+    niches = load_niches(settings.niches_file)
+    if not niches and any(n["type"] == "niche_select" for n in engine.nodes.values()):
+        raise ValueError(f"{settings.journey_file} has a niche_select node but NICHES_FILE is not set")
     return Services(
         settings=settings,
         translator=translator,
-        engine=JourneyEngine.from_yaml(settings.journey_file, ACTIONS),
+        engine=engine,
         retriever=retriever,
         crm=crm,
         auth=AuthService(settings, crm, deliver=otp_delivery),
-        ai=AIAssistant(llm or build_llm(settings), retriever, translator, settings),
+        ai=AIAssistant(llm or build_llm(settings), retriever, translator, settings, niches),
+        niches=niches,
     )
 
 

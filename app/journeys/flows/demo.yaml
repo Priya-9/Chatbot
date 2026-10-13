@@ -1,0 +1,137 @@
+# Sales-demo journey: the visitor picks their business niche, then the bot plays a sample business in it.
+# Niche names, booking wording and example questions come from demo/niches.yaml; texts are translation keys
+# from locales/<lang>.yaml ("demo." section), and can use {business}, {book_label}, {examples}, {brand}...
+# Enable with the settings in .env.demo.example.
+
+start: language
+home: main_menu
+
+commands:
+  - keywords: [menu, start, hi, hello, hey, hola, menú, inicio, मेनू, नमस्ते, हाय, القائمة, مرحبا]
+    goto: main_menu
+  - keywords: [language, idioma, भाषा, اللغة]
+    goto: language
+  - keywords: [switch, change, niche, business, demo, cambiar, बदलें, تغيير]
+    goto: niche
+  - keywords: [human, agent, humano, agente, एजेंट, موظف]
+    goto: handoff
+  - keywords: [get bot, get this bot, i want this bot, बॉट चाहिए]
+    goto: pitch
+
+resume_keywords: [bot, menu, robot, menú, बॉट, روبوت]
+
+nodes:
+  language:
+    type: language_select
+    text: language.prompt
+    button: language.button
+    next: niche
+
+  # --- 1. What's your business? -------------------------------------------
+  niche:
+    type: niche_select
+    text: demo.niche_prompt
+    button: demo.niche_button
+    next: niche_welcome
+
+  niche_welcome:
+    type: message
+    text: demo.welcome
+    next: main_menu
+
+  # --- 2. Menu, as the sample business -------------------------------------
+  main_menu:
+    type: menu
+    text: demo.menu_prompt
+    button: menu.button
+    fallback: ai_chat   # typing a question at the menu goes straight to the AI
+    options:
+      - {id: ask_ai, label: demo.ask_ai,  description: demo.ask_ai_desc, next: ai_chat_intro}
+      - {id: book,   label: demo.book,    description: demo.book_desc,   next: book_name}
+      - {id: human,  label: demo.human,   description: demo.human_desc,  next: handoff}
+      - {id: get_bot, label: demo.get_bot, description: demo.get_bot_desc, next: pitch}
+      - {id: switch, label: demo.switch,  description: demo.switch_desc, next: niche}
+
+  ai_chat_intro:
+    type: message
+    text: demo.ai_intro
+    next: ai_chat
+
+  ai_chat:
+    type: ai
+
+  # --- Booking / enquiry as the sample business's customer -----------------
+  book_name:
+    type: input
+    text: demo.book_ask_name
+    save_as: book_name
+    validate: nonempty
+    next: book_detail
+
+  book_detail:
+    type: input
+    text: demo.book_ask_detail      # wording per niche: booking.ask_detail in niches.yaml
+    save_as: book_detail
+    validate: nonempty
+    next: book_when
+
+  book_when:
+    type: input
+    text: demo.book_ask_when
+    save_as: book_when
+    validate: nonempty
+    next: book_submit
+
+  book_submit:
+    type: action
+    action: crm.create_lead
+    name_field: book_name
+    email_field: ""
+    interest_field: ""
+    interest: "[DEMO BOOKING] {niche_title} / {business}: {book_detail}, when: {book_when}"
+    clear: [book_detail, book_when]
+    thanks: demo.book_thanks
+    on_success: book_upsell
+    on_failure: main_menu
+
+  book_upsell:
+    type: message
+    text: demo.book_upsell
+    next: main_menu
+
+  # --- "Get this bot for my business": the real lead -----------------------
+  pitch:
+    type: message
+    text: demo.pitch
+    next: prospect_name
+
+  prospect_name:
+    type: input
+    text: demo.prospect_ask_name
+    save_as: prospect_name
+    validate: nonempty
+    next: prospect_company
+
+  prospect_company:
+    type: input
+    text: demo.prospect_ask_company
+    save_as: prospect_company
+    validate: nonempty
+    next: prospect_submit
+
+  prospect_submit:
+    type: action
+    action: crm.create_lead
+    name_field: prospect_name
+    email_field: ""
+    interest_field: ""
+    interest: "[PROSPECT] {prospect_company} (tried the {niche_title} demo)"
+    clear: [prospect_company]
+    thanks: demo.prospect_thanks
+    on_success: main_menu
+    on_failure: main_menu
+
+  # --- Human handoff (you reply from the admin API / WhatsApp Business) ----
+  handoff:
+    type: action
+    action: handoff.start

@@ -57,8 +57,15 @@ class Hit:
     score: float
 
 
+def scope_of(source: str) -> str:
+    """Top-level folder of a knowledge source ("clinic/faq.md" -> "clinic"); "" for files at the root."""
+    return source.split("/", 1)[0] if "/" in source else ""
+
+
 class Retriever(Protocol):
-    def search(self, query: str, k: int) -> list[Hit]: ...
+    def search(self, query: str, k: int, scope: str | None = None) -> list[Hit]:
+        """Top-k hits. With `scope`, only that sub-folder plus shared root-level files are searched."""
+        ...
 
     def rebuild(self, chunks: list[tuple[str, str]]) -> None:
         """Re-index from (source, text) pairs."""
@@ -105,13 +112,15 @@ class BM25Retriever:
         with self._lock:
             self._index(chunks)
 
-    def search(self, query: str, k: int) -> list[Hit]:
+    def search(self, query: str, k: int, scope: str | None = None) -> list[Hit]:
         self._ensure_loaded()
         terms = [t for t in set(tokenize(query)) if t in self._idf]
         if not terms:
             return []
         scored = []
         for i, tf in enumerate(self._tfs):
+            if scope is not None and scope_of(self._docs[i][0]) not in ("", scope):
+                continue
             score = 0.0
             norm = self.k1 * (1 - self.b + self.b * self._lengths[i] / (self._avgdl or 1))
             for term in terms:
@@ -145,13 +154,14 @@ class ChromaRetriever:
             self._collection.add(
                 ids=[f"c{start + i}" for i in range(len(part))],
                 documents=[text for _, text in part],
-                metadatas=[{"source": source} for source, _ in part],
+                metadatas=[{"source": source, "scope": scope_of(source)} for source, _ in part],
             )
 
-    def search(self, query: str, k: int) -> list[Hit]:
+    def search(self, query: str, k: int, scope: str | None = None) -> list[Hit]:
         if self._collection.count() == 0:
             return []
-        res = self._collection.query(query_texts=[query], n_results=k)
+        where = {"scope": {"$in": ["", scope]}} if scope is not None else None
+        res = self._collection.query(query_texts=[query], n_results=k, where=where)
         return [
             Hit(source=meta.get("source", ""), text=doc, score=1.0 - float(dist))
             for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0])

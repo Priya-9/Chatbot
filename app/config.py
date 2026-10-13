@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     locales_dir: str = "locales"
     journey_file: str = "app/journeys/flows/main.yaml"
     system_prompt_file: str = "prompts/system_prompt.md"  # AI tone and rules; {business} is replaced
+    niches_file: str = ""  # sales-demo mode: demo/niches.yaml (see app/demo); empty for client deployments
 
     @property
     def languages(self) -> list[str]:

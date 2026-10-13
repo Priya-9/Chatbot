@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.demo.niches import Niche
 from app.i18n.translator import Translator
 from app.llm.claude import LLM, LLMError
 from app.models import Message, User
@@ -36,8 +37,10 @@ def load_system_prompt(settings: Settings) -> str:
 
 
 class AIAssistant:
-    def __init__(self, llm: LLM, retriever: Retriever, translator: Translator, settings: Settings):
+    def __init__(self, llm: LLM, retriever: Retriever, translator: Translator, settings: Settings,
+                 niches: dict[str, Niche] | None = None):
         self.llm = llm
+        self.niches = niches or {}
         self.retriever = retriever
         self.translator = translator
         self.settings = settings
@@ -48,6 +51,9 @@ class AIAssistant:
         stmt = select(Message).where(Message.user_id == user.id, Message.ai.is_(True))
         if exclude_id is not None:
             stmt = stmt.where(Message.id != exclude_id)
+        niche_from = (user.journey_data or {}).get("niche_from")
+        if niche_from:  # demo mode: forget the chat about the previous sample business
+            stmt = stmt.where(Message.id > niche_from)
         rows = list(db.scalars(stmt.order_by(Message.id.desc()).limit(limit)))[::-1]
         history = [
             {"role": "user" if m.direction == "in" else "assistant", "content": m.content} for m in rows
@@ -56,16 +62,20 @@ class AIAssistant:
             history.pop(0)
         return history
 
-    def build_user_turn(self, question: str, language: str) -> str:
-        hits = self.retriever.search(question, self.settings.rag_top_k)
+    def build_user_turn(self, question: str, language: str, niche: Niche | None = None) -> str:
+        hits = self.retriever.search(question, self.settings.rag_top_k, scope=niche.knowledge if niche else None)
         if hits:
             excerpts = "\n\n".join(
                 f'<excerpt source="{h.source}">\n{h.text}\n</excerpt>' for h in hits
             )
         else:
             excerpts = "(no relevant excerpts found)"
+        # per-request, so it belongs in the user turn: the system prompt stays byte-identical for caching
+        business = ""
+        if niche:
+            business = f"Business you represent: {niche.text('business', 'en')} ({niche.text('title', 'en')})\n\n"
         return (
-            f"<knowledge_base>\n{excerpts}\n</knowledge_base>\n\n"
+            f"{business}<knowledge_base>\n{excerpts}\n</knowledge_base>\n\n"
             f"Reply language: {self.translator.english_name(language)}\n\n"
             f"Customer message:\n{question}"
         )
@@ -73,7 +83,8 @@ class AIAssistant:
     def answer(self, db: Session, user: User, question: str, exclude_message_id: int | None = None) -> str:
         language = self.translator.resolve(user.language)
         messages = self._history(db, user, exclude_message_id)
-        messages.append({"role": "user", "content": self.build_user_turn(question, language)})
+        niche = self.niches.get((user.journey_data or {}).get("niche") or "")
+        messages.append({"role": "user", "content": self.build_user_turn(question, language, niche)})
         try:
             result = self.llm.complete(self.system_prompt, messages)
         except LLMError:

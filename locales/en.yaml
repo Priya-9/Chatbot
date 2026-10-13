@@ -60,3 +60,31 @@ account:
 handoff:
   started: "👩‍💼 I've notified our team — a human agent will reply here shortly. Type *bot* to return to the assistant."
   ended: "You're back with the virtual assistant 🤖"
+
+# --- Sales-demo mode (app/journeys/flows/demo.yaml). {business}, {niche_title}, {book_label},
+# {examples}... come from demo/niches.yaml; {brand} is BUSINESS_NAME (your freelance brand).
+demo:
+  niche_prompt: "👋 Hi {name}! I'm an AI WhatsApp assistant built by *{brand}*.\n\nLet's make this demo about *your* business. What kind of business do you run? Pick the closest one 👇"
+  niche_button: Business types
+  welcome: "Great! For this demo I'm the assistant of *{business}*, a sample {niche_title} business 🎭\n\nTalk to me the way *your customers* would. Try:\n{examples}\n\n_Type *switch* anytime to try another business type._"
+  menu_prompt: "*{business}*: how can I help you today? You can also just type your question."
+  ask_ai: Ask a question
+  ask_ai_desc: Prices, timings, services, answered instantly
+  book: "{book_label}"
+  book_desc: See a booking land straight in the owner's sheet
+  human: Talk to a human
+  human_desc: The bot hands the chat over to a real person
+  get_bot: Get this bot 🚀
+  get_bot_desc: Your own AI assistant, live in a few days
+  switch: Try another business
+  switch_desc: Pick a different business type
+  ai_intro: "Ask me anything a customer of *{business}* would ask, for example:\n{examples}\n\nType *menu* to go back."
+  book_ask_name: "Sure! May I have your name, please?"
+  book_ask_detail: "{book_ask_detail}"
+  book_ask_when: "{book_ask_when}"
+  book_thanks: "✅ Thank you {book_name}! Your request is noted:\n*{book_detail}*, {book_when}\n\nThe team will confirm here on WhatsApp shortly."
+  book_upsell: "💡 *Behind the scenes:* that request just landed in the owner's Google Sheet / CRM with your name and number, and they were notified, automatically, 24×7.\n\nThat's what *{brand}* builds for businesses like yours. Tap *Get this bot 🚀* in the menu to get one."
+  pitch: "🚀 *Want an assistant like this for your business?*\n\n*{brand}* sets it up on your own WhatsApp number:\n• trained on your prices, services and FAQs\n• replies 24×7 in your customers' language\n• bookings and enquiries go to your sheet/CRM\n• hands the chat to you whenever needed\n\nTwo quick questions and we'll get in touch."
+  prospect_ask_name: "What's your name?"
+  prospect_ask_company: "And your business name and city? (e.g. _Sharma Dental, Pune_)"
+  prospect_thanks: "Thank you {prospect_name}! 🙌 We'll WhatsApp you on this number within 24 hours with a free demo customised for *{prospect_company}*.\n\nMeanwhile, keep testing the bot. Type *menu* anytime."

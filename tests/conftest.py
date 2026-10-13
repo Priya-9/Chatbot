@@ -17,6 +17,16 @@ os.environ.update({
     "ADMIN_PASSWORD": "secret-pass",
     "JWT_SECRET": "test-jwt-secret-that-is-long-enough-for-hs256",
     "ANTHROPIC_API_KEY": "test-key",
+    # pin the client-template files so a developer's .env (e.g. demo mode) can't change the tests
+    "BUSINESS_NAME": "Acme Cloud",
+    "KNOWLEDGE_DIR": "knowledge",
+    "JOURNEY_FILE": "app/journeys/flows/main.yaml",
+    "SYSTEM_PROMPT_FILE": "prompts/system_prompt.md",
+    "NICHES_FILE": "",
+    "LOCALES_DIR": "locales",
+    "SUPPORTED_LANGUAGES": "en,es,hi,ar",
+    "DEFAULT_LANGUAGE": "en",
+    "LLM_PROVIDER": "claude",
 })
 
 import pytest  # noqa: E402

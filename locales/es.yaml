@@ -60,3 +60,29 @@ account:
 handoff:
   started: "👩‍💼 He avisado a nuestro equipo: un agente te responderá aquí en breve. Escribe *bot* para volver al asistente."
   ended: "Has vuelto con el asistente virtual 🤖"
+
+demo:
+  niche_prompt: "👋 ¡Hola {name}! Soy un asistente de WhatsApp con IA creado por *{brand}*.\n\nHagamos esta demo sobre *tu* negocio. ¿Qué tipo de negocio tienes? Elige el más parecido 👇"
+  niche_button: Tipos de negocio
+  welcome: "¡Genial! En esta demo soy el asistente de *{business}*, un negocio de ejemplo de {niche_title} 🎭\n\nHáblame como lo harían *tus clientes*. Prueba:\n{examples}\n\n_Escribe *cambiar* cuando quieras para probar otro tipo de negocio._"
+  menu_prompt: "*{business}*: ¿en qué puedo ayudarte hoy? También puedes escribir tu pregunta."
+  ask_ai: Hacer una pregunta
+  ask_ai_desc: Precios, horarios, servicios, al instante
+  book: "{book_label}"
+  book_desc: Mira cómo la reserva llega a la hoja del dueño
+  human: Hablar con una persona
+  human_desc: El bot pasa el chat a una persona real
+  get_bot: Quiero este bot 🚀
+  get_bot_desc: Tu propio asistente con IA, listo en pocos días
+  switch: Probar otro negocio
+  switch_desc: Elige otro tipo de negocio
+  ai_intro: "Pregúntame lo que preguntaría un cliente de *{business}*, por ejemplo:\n{examples}\n\nEscribe *menú* para volver."
+  book_ask_name: "¡Claro! ¿Me dices tu nombre, por favor?"
+  book_ask_detail: "{book_ask_detail}"
+  book_ask_when: "{book_ask_when}"
+  book_thanks: "✅ ¡Gracias {book_name}! Tu solicitud quedó registrada:\n*{book_detail}*, {book_when}\n\nEl equipo te confirmará aquí por WhatsApp en breve."
+  book_upsell: "💡 *Detrás de escena:* esa solicitud llegó al instante a la hoja de Google / CRM del dueño con tu nombre y número, y recibió un aviso, automáticamente, 24×7.\n\nEso es lo que *{brand}* crea para negocios como el tuyo. Toca *Quiero este bot 🚀* en el menú."
+  pitch: "🚀 *¿Quieres un asistente así para tu negocio?*\n\n*{brand}* lo instala en tu propio número de WhatsApp:\n• entrenado con tus precios, servicios y preguntas frecuentes\n• responde 24×7 en el idioma de tus clientes\n• reservas y consultas van a tu hoja/CRM\n• te pasa el chat cuando haga falta\n\nDos preguntas rápidas y te contactamos."
+  prospect_ask_name: "¿Cómo te llamas?"
+  prospect_ask_company: "¿Y el nombre de tu negocio y ciudad? (ej. _Clínica Dental Sol, Madrid_)"
+  prospect_thanks: "¡Gracias {prospect_name}! 🙌 Te escribiremos por WhatsApp a este número en menos de 24 horas con una demo gratuita para *{prospect_company}*.\n\nMientras tanto, sigue probando el bot. Escribe *menú* cuando quieras."

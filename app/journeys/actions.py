@@ -5,26 +5,45 @@ Add your own by writing a function `(ctx, node) -> ActionResult` and registering
 
 from app.auth.otp import VerifyResult, mask_email
 from app.crm.providers import LeadData
+from app.i18n.translator import _SafeDict
 from app.journeys.engine import ActionResult, Context
 from app.models import Lead
 from app.whatsapp.messages import TextOut
 
 
 def create_lead(ctx: Context, node: dict) -> ActionResult:
+    """Save a lead from collected journey data. Node options (all optional, defaults suit the main flow):
+    `name_field` / `email_field` / `interest_field` - journey_data keys to read;
+    `interest` - a template over journey_data + text placeholders, e.g. "Booking: {book_detail}", used
+    instead of `interest_field`; `thanks` - translation key of the confirmation message."""
     data = ctx.data
+    name_field = node.get("name_field", "lead_name")
+    email_field = node.get("email_field", "lead_email")
+    interest_field = node.get("interest_field", "lead_interest")
+    if "interest" in node:
+        params = {k: v for k, v in data.items() if isinstance(v, str)}
+        if ctx.niche:
+            params.update(ctx.niche.params("en"))  # CRM records stay in English
+        interest = node["interest"].format_map(_SafeDict(params))
+    else:
+        interest = data.get(interest_field)
     lead = LeadData(
-        name=data.get("lead_name", ""),
-        email=data.get("lead_email", ""),
+        name=data.get(name_field, ""),
+        email=data.get(email_field, "") if email_field else "",
         phone=ctx.user.wa_id,
-        interest=data.get("lead_interest"),
+        interest=interest,
     )
     crm_ref = ctx.services.crm.create_lead(ctx.db, lead)
     ctx.db.add(Lead(
         user_id=ctx.user.id, name=lead.name, email=lead.email, phone=lead.phone,
         interest=lead.interest, crm_ref=crm_ref, synced=crm_ref is not None,
     ))
-    ctx.set_data(lead_name=None, lead_email=None, lead_interest=None)
-    return ActionResult(messages=[TextOut(ctx.t("lead.thanks", lead_name=lead.name, email=lead.email))])
+    fields = [f for f in (name_field, email_field, interest_field, *node.get("clear", [])) if f]
+    ctx.set_data(**dict.fromkeys(fields))
+    thanks = ctx.t(node.get("thanks", "lead.thanks"), lead_name=lead.name, email=lead.email, **{
+        k: v for k, v in data.items() if isinstance(v, str) and k not in ("lead_name", "email")
+    })
+    return ActionResult(messages=[TextOut(thanks)])
 
 
 def send_otp(ctx: Context, node: dict) -> ActionResult:
