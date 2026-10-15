@@ -10,6 +10,7 @@ COPY app ./app
 COPY locales ./locales
 COPY knowledge ./knowledge
 COPY prompts ./prompts
+COPY demo ./demo
 COPY scripts ./scripts
 
 # uid 1000: client folders mounted from the host are chown'ed to it by deploy/scripts/new-client.sh
