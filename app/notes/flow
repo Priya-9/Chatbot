@@ -1,0 +1,18 @@
+"hi" (new user)
+ └► language        [waits]  tap English
+ └► niche           [waits]  list built from niches.yaml (tap a row, type "I run a gym", or "3")
+ └► niche_welcome   [auto]   "I'm the assistant of *SmileCare…*" + example questions
+ └► main_menu       [waits]  5 options; option 2 = booking.label ("Book appointment" / "Reserve a table"…)
+      ├ Ask a question ─► ai_chat_intro [auto] ─► ai_chat [waits; every message gets an AI answer]
+      ├ typed question ─► ai_chat (fallback: answered immediately, no intro)
+      ├ Book… ─► book_name ─► book_detail ─► book_when ─► book_submit [saves lead] ─► book_upsell ─► main_menu
+      ├ Talk to a human ─► handoff (bot goes silent until "bot" or "menu")
+      ├ Get this bot 🚀 ─► pitch ─► prospect_name ─► prospect_company ─► prospect_submit ─► main_menu
+      └ Try another business ─► niche
+Typed anywhere: menu/hi/start → main_menu · switch/niche/demo → niche · human → handoff · get bot → pitch
+
+
+can you give me flow of files called from customer's every input till end 
+with little business usecase written in side 
+- each file comes in line in this vertical flow
+

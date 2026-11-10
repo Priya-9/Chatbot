@@ -1,0 +1,15 @@
+
+
+
+build_crm (crm/providers.py) -
+- as per .env of crm provider set 
+- CRMProvider (interface) - find_customer_by_email, get_customer, create_lead, log_event
+1. LocalCRM - 
+
+
+Handling concurrency in messages coming from multiple numbers - 
+
+process_incoming -> 
+- DB - 
+session_scope() -> get_sessionmaker() -> sessionmaker() -> get_engine()
+

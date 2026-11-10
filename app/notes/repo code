@@ -1,0 +1,125 @@
+
+
+
+Diagram -
+1. in flow - add scopes - u can do / is there
+2. note - where can be done (location)
+
+
+3. no code - can be prompted later. 
+
+-------------------------------------------------------------------------------------------
+
+2 code flows - 
+1. files/code
+2. data, modifications flow (abstract-1)
+
+1.Flows - Inputs - 
+    1. POST /webhook
+    2. GET /webhook
+    3. CLI chat scripts/chat_cli.py
+
+user types - process_incoming(func) - (dedupe - user lookup - handoff check) - JourneyEngine - menu node, AI node (RAG + LLM), or action node (CRM / OTP / handoff) - Outgoing messages - WhatsAppClient.
+
+2. Go to each folder and attach buisness usecase to it.
+settings - 
+/app/
+
+/admin/routes.py - REST APIs - 
+- /login - 
+/admin/security.py - 
+- check_credentials (compares username, pswd)
+- create_token (encode as per algo-HS256)
+- require_admin (on creds -> decode it -> to check admin)
+
+/auth/otp.py - 
+- smtp_delivery - deliver email (otp send with from,to,subject)
+- authService - init(CTR), _hash(creates hash encode), is_verified(checks time attached to user with current time), start()
+
+config.py - basic env variable values
+
+
+locales\en.yaml - demo  -> demo/niches.yaml
+- contains template
+
+demo/niches.yaml -
+- 10 niches
+
+demo/knowledge/<niche>/<niche>.md 
+- contains knowledge files of each niches
+
+demo/system_prompt.md 
+- sets AI's messaging tone / replying strategy
+
+2 flows - 
+1. demo - conversation flow  (app/journeys/flows/demo.yaml)
+2. normal (main)
+
+app/demo/niches.py loads niches.yaml
+1. fills as per language selected
+2. goes in niche selected by user
+3. fills placeholders like {business}, {book_label} and {examples}
+
+app/demo/__init__.py - stores locations of knowledge, db in "DEMO_ENV"
+app/journeys/engine.py - stores (global vars) in conversation
+app/rag/retriever.py - search knowledge of niche
+app/llm/assistant.py - 
+app/journeys/actions.py - 
+app/services/container.py - 
+
+Q - how 
+locales\en.yaml
+app/journeys/flows/demo.yaml 
+are related
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

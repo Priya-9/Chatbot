@@ -1,0 +1,477 @@
+══════════════════════════════════════════════════════════════════════════════════════════════════
+ AI2: FILE FLOWS FOR EVERY ENTRY POINT
+ Read top to bottom: each └► is the next file / function called.
+ ↳ = what it means for the business      ⚠ = gotcha
+ Example business: the Clinic demo (the bot plays "SmileCare Dental & Skin Clinic").
+══════════════════════════════════════════════════════════════════════════════════════════════════
+
+QUICK MAP: WHICH FILES RUN WHEN
+ Every message      app/whatsapp/webhook.py · app/whatsapp/messages.py · app/services/conversation.py
+                    app/services/container.py · app/db.py · app/models.py · app/journeys/engine.py
+                    app/whatsapp/client.py
+ Bot sentences      app/i18n/translator.py + locales/<lang>.yaml · app/demo/niches.py + demo/niches.yaml
+ AI answers         app/llm/assistant.py · app/rag/retriever.py · app/llm/claude.py (or groq.py)
+ End of a form      app/journeys/actions.py · app/crm/providers.py
+ Login (client)     app/journeys/actions.py · app/auth/otp.py · app/crm/providers.py
+ Staff / owner      app/admin/routes.py · app/admin/security.py
+ Startup only       app/config.py · app/main.py bootstrap() · app/rag/ingest.py
+                    (all .yaml and .md files are read at startup, not per message)
+
+CONTENTS
+ PART A  CUSTOMER MESSAGES ON WHATSAPP (POST /webhook)
+   A0   Common path IN and OUT (every message)
+   A1   First message from a new customer
+   A2   Picks a language
+   A3   Picks a business type (demo only)
+   A4   Taps a menu option
+   A5   Types a question → AI answer
+   A6   Answers a form question
+   A7   Last form answer → lead saved
+   A8   Asks for a human
+   A9   Writes while a human has the chat
+   A10  Types a shortcut word
+   A11  Sends a photo, voice note, sticker or reaction
+   A12  Sends something the bot doesn't understand
+   A13  "My account" with email-code login (client bot only)
+   A14  Meta re-sends a message, or sends delivery receipts
+   A15  Something breaks while answering
+ PART B  OTHER STARTING POINTS
+   B1   App starts
+   B2   Meta verifies the webhook (one-time setup)
+   B3   Health check
+   B4   Admin API: login
+   B5   Admin API: read chats, leads, customers, stats
+   B6   Admin API: reply to a customer as a human
+   B7   Admin API: take over / hand back a chat
+   B8   Admin API: add a customer (for login)
+   B9   Admin API: upload knowledge / re-index
+   B10  scripts/chat_cli.py (chat in the terminal)
+   B11  scripts/ingest.py (re-index from the command line)
+   B12  pytest
+   B13  Server scripts (deploy/scripts/*.sh)
+
+
+══════════════════════════════════════════════════════════════════════════════════════════════════
+ PART A: CUSTOMER MESSAGES ON WHATSAPP
+══════════════════════════════════════════════════════════════════════════════════════════════════
+
+A0. COMMON PATH: every customer message goes IN and OUT this way
+──────────────────────────────────────────────────────────────────────────────────────────────────
+[IN]
+ Customer sends anything on WhatsApp
+ │  WhatsApp → Meta → POST https://<domain>/webhook   (on the server, Caddy forwards it to the client's container)
+ ▼
+ └► app/main.py                       app                 sends /webhook to the WhatsApp router
+ └► app/whatsapp/webhook.py           receive_webhook()   checks Meta's signature (WHATSAPP_APP_SECRET)
+                                                          ↳ fake messages from anyone else get 401
+     └► parse_webhook()                                   pulls out messages, ignores delivery/read receipts
+     └► app/whatsapp/messages.py      Incoming            text / button tap / list pick → one shape
+     └► queues process_incoming() as a background task, answers Meta 200 OK at once
+                                                          ↳ Meta never re-sends while the AI is thinking
+ └► app/services/conversation.py      process_incoming()  runs on a thread from the pool
+     └► app/services/container.py     get_services()      engine, AI, CRM, translator (built at startup)
+     └► _user_locks[wa_id]                                one message per customer at a time
+                                                          ↳ 3 quick messages are answered in turn
+     └► app/db.py                     session_scope()     one transaction: all saved or nothing
+     └► app/models.py                 User, Message       finds/creates the customer, logs the message
+                                                          ↳ every chat can be read later (admin API)
+     └► same message again?   → A14 (stop)
+     └► human has the chat?   → A9
+     └► not text?             → A11
+ └► app/journeys/engine.py            handle()            new customer? shortcut word? else current step
+     └► app/journeys/flows/demo.yaml  (in memory)         the conversation script (client bot: main.yaml)
+     └► app/i18n/translator.py + locales/<lang>.yaml      every bot sentence in the customer's language
+     └► app/demo/niches.py + demo/niches.yaml             fills {business}, {book_label}, {examples}...
+         ... the step-specific part: A1 to A13 ...
+[OUT]
+ └► app/services/conversation.py      saves each bot reply as a Message, commits
+ └► app/whatsapp/client.py            mark_read()         customer sees blue ticks
+                                      send()              build_payloads(): text (split at 4096 chars),
+                                                          up to 3 buttons, or a list
+                                                          ↳ the reply appears in the customer's chat
+
+
+A1. FIRST MESSAGE FROM A NEW CUSTOMER   ("hi", or even a question)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/models.py                     User created: no language, no step yet
+ └► app/journeys/engine.py            handle(): no current step → goto("language")  (the flow's `start`)
+     └► _render_languages()           one row per locales/<lang>.yaml in SUPPORTED_LANGUAGES
+     └► app/i18n/translator.py        t("language.prompt")
+ [A0 OUT]  "🌐 Please choose your language." + list
+ ↳ every new customer picks a language first, even if their first message was a question
+ (a returning customer whose step was removed from the YAML goes to the main menu instead)
+
+
+A2. PICKS A LANGUAGE   (taps "हिन्दी", or types "Hindi" / "हिन्दी")
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            _handle_input() → language_select → _match_language()
+                                      no match → the language list is sent again
+ └► app/models.py                     User.language = "hi"
+ └► app/i18n/translator.py            t("language.set") from locales/hi.yaml
+ └► engine.goto(next)                 demo: "niche" → _render_niches() (the A3 list)
+                                      client bot: "welcome" → main_menu
+     └► app/demo/niches.py            Niche.text("title" / "description", "hi") via pick()
+                                      (niches.yaml has only en + hi: other languages get English)
+ [A0 OUT]  "language set" + the business-type list
+ ↳ from now on bot sentences come from locales/hi.yaml, and the AI is told "Reply language: Hindi"
+ ⚠ typing "hi" here is the shortcut word for the menu, not Hindi → menu with no business picked (A10)
+
+
+A3. PICKS A BUSINESS TYPE   (demo only: taps "Clinic / Dental", types "I run a dental clinic", or "1")
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            _handle_input() → niche_select → _match_niche()
+     └► app/demo/niches.py            Niche.matches(): id, title or an alias word
+                                      first match in file order wins ("hotel restaurant" → Restaurant)
+                                      no match → "Sorry, I didn't catch that" + list again
+ └► app/models.py                     User.journey_data = {niche: "clinic", niche_from: <this message id>}
+ └► engine.goto("niche_welcome")      message: t("demo.welcome") + Niche.params()
+                                      → {business} {niche_title} {examples}
+ └► engine.goto("main_menu")          menu: _render_menu() → 5 rows, row 2 title = booking.label
+ [A0 OUT]  2 messages: "For this demo I'm the assistant of *SmileCare...*" + menu list
+ ↳ the prospect sees the bot working for THEIR kind of business; AI memory of an earlier niche is dropped
+
+
+A4. TAPS A MENU OPTION   (or types its number "1"-"5" or its exact title)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            _handle_input() → menu → _match_option()
+                                      typed text that matches no option → the AI answers it (A5)
+ └► engine.goto(option.next)          the option's next step in demo.yaml:
+       Ask a question       → ai_chat_intro (t("demo.ai_intro") + examples) → ai_chat (waits)
+       Book appointment     → book_name ("May I have your name, please?")   → A6
+       Talk to a human      → handoff                                       → A8
+       Get this bot 🚀      → pitch (signed with BUSINESS_NAME) → prospect_name → A6
+       Try another business → niche list                                    → A3
+     client bot (main.yaml): Ask a question · Book a demo → lead_name (A6) · My account (A13)
+                             Talk to a human (A8) · Change language (A2)
+ [A0 OUT]
+ ↳ every option is just "go to node X" in the YAML: change the menu without touching Python
+
+
+A5. TYPES A QUESTION → AI ANSWER   ("How much is a root canal?")
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            _handle_input(): at main_menu (no option matched → fallback ai_chat)
+                                      or already in ai_chat; marks the message ai=True (it becomes memory)
+ └► app/llm/assistant.py              AIAssistant.answer()
+     └► _history()                    last 10 AI questions + answers from app/models.py Message
+                                      (only since niche_from, so a switched niche starts fresh)
+                                      ↳ follow-ups like "and for kids?" make sense
+     └► build_user_turn()
+         └► app/rag/retriever.py      BM25Retriever.search(question, top 4, scope="clinic")
+                                      searches demo/knowledge/clinic/ + files in the top folder only
+                                      (chunks were built by app/rag/ingest.py at startup)
+                                      ↳ finds "Root canal treatment (RCT): ₹4,500 – ₹7,000..." in clinic.md
+         └► adds "Business you represent: SmileCare..." and "Reply language: Hindi"
+     └► system prompt                 demo/system_prompt.md, read once at startup
+                                      (client bot: prompts/system_prompt.md)
+                                      ↳ short, friendly, never invents prices, sends bookings to the menu
+     └► app/llm/claude.py             ClaudeLLM.complete()   (LLM_PROVIDER=groq → app/llm/groq.py)
+                                      API error → t("ai.unavailable") · refusal → t("ai.refusal")
+ [A0 OUT]  reply saved with ai=True
+ ↳ the customer gets the business's real price, in their own language, 24×7
+
+
+A6. ANSWERS A FORM QUESTION
+    demo booking: name → detail → when · Get this bot: name → business & city
+    client "Book a demo": name → email → interest
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            _handle_input() → input
+                                      empty → t("common.text_only")
+                                      VALIDATORS fails (nonempty / email / phone / otp)
+                                        → t("validation.email") etc., same question again
+                                      ok → Context.set_data(book_name="Alex")
+ └► app/models.py                     User.journey_data keeps the answer
+ └► engine.goto(next)                 next question, e.g. t("demo.book_ask_detail")
+     └► app/demo/niches.py            {book_ask_detail} = booking.ask_detail of the chosen niche
+ [A0 OUT]  the next question
+ ↳ a restaurant asks "How many guests...", a clinic asks "Which treatment..."; a bad email is asked again
+
+
+A7. LAST FORM ANSWER → LEAD SAVED   ("Friday 8:30 pm" for a table booking)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            input saves book_when → goto("book_submit") → _enter() → action
+     └► self.actions["crm.create_lead"]                   (registered in ACTIONS)
+ └► app/journeys/actions.py           create_lead()
+     └► builds the interest text from the node's template + Niche.params("en"):
+        "[DEMO BOOKING] Restaurant / Cafe / The Spice Route Kitchen: 4 people, birthday, when: Friday 8:30 pm"
+     └► app/crm/providers.py          CRM_PROVIDER: local (nothing more) · hubspot (contact)
+                                      · webhook (POST "lead.created")
+                                      ↳ webhook → Zapier/Make → Google Sheet row + alert to the owner
+     └► app/models.py                 Lead row (synced = the CRM accepted it)
+     └► clears the answers, t("demo.book_thanks")
+ └► engine.goto("book_upsell") → goto("main_menu")
+ [A0 OUT]  3 messages: thanks + "Behind the scenes..." + menu
+ Same path: Get this bot → prospect_submit → "[PROSPECT] Hilltop Resort, Shimla (tried the Hotel / Homestay demo)"
+            client Book a demo → lead_submit (name, email, interest; default thanks text)
+ ↳ bookings and sales leads land in the sheet/CRM automatically, with the customer's WhatsApp number
+ ⚠ a failed CRM sync still saves the lead locally (synced = false); the customer still gets "thanks"
+
+
+A8. ASKS FOR A HUMAN   (taps "Talk to a human", or types "human" / "agent")
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            goto("handoff") → action "handoff.start"
+ └► app/journeys/actions.py           start_handoff(): User.handoff = True
+     └► app/crm/providers.py          log_event("handoff.requested")
+                                      webhook CRM POSTs it (you get an alert); local / HubSpot only log it
+ └► t("handoff.started")              no next step: the flow stops here
+ [A0 OUT]  "👩‍💼 I've notified our team - a human agent will reply here shortly. Type *bot* to return..."
+ ↳ staff find the chat with GET /admin/users?handoff=true (B5) and answer with B6
+
+
+A9. WRITES WHILE A HUMAN HAS THE CHAT
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]  (the message is still saved, so staff can read it)
+ └► app/services/conversation.py      user.handoff is True → the engine is NOT called
+     typed "bot" / "menu" / "robot"... (resume_keywords in demo.yaml)
+        → User.handoff = False, t("handoff.ended")  "You're back with the virtual assistant 🤖"
+        → engine.goto(home) → menu
+     anything else → no reply
+ [A0 OUT]  only when resumed; the customer still sees blue ticks either way
+ ↳ the bot never talks over your staff, and the customer can always get the bot back
+
+
+A10. TYPES A SHORTCUT WORD   (must be the whole message, typed; button taps never count)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            handle(): text is in `commands` (demo.yaml) → goto(target)
+                                      the current step is skipped
+       menu · hi · hello · start           → main_menu
+       switch · change · niche · demo      → business list (A3)
+       language                            → language list (A2)
+       human · agent                       → A8
+       get bot · get this bot              → pitch
+       client bot also: logout · sign out  → logout (A13)
+ [A0 OUT]
+ ↳ the customer can leave any step, even in the middle of a booking
+ ⚠ "go to menu" is not a shortcut (the whole message must match) → it goes to the AI or the current step
+ ⚠ "hi" / "menu" before a business is picked → menu with no niche: row 2 shows "{book_label}"
+
+
+A11. SENDS A PHOTO, VOICE NOTE, VIDEO, DOCUMENT, LOCATION, STICKER OR REACTION
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/services/conversation.py      inc.type is not text / interactive / button
+     └► t("common.text_only")         "I can only read text messages for now. Please type your message."
+ [A0 OUT]  the customer's step doesn't change
+ ⚠ a 👍 reaction to a bot message also gets this reply
+
+
+A12. SENDS SOMETHING THE BOT DOESN'T UNDERSTAND
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ [A0 IN]
+ └► app/journeys/engine.py            _handle_input(), depending on the current step:
+       language list   → sends the list again
+       business list   → "Sorry, I didn't catch that" + list again
+       menu            → treated as a question for the AI (A5)
+       form question   → validation message, same question again (A6)
+       AI chat         → always answered by the AI
+ [A0 OUT]
+ ↳ the customer is never stuck: every reply shows what to do next
+
+
+A13. "MY ACCOUNT" WITH EMAIL-CODE LOGIN   (client bot only, main.yaml)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ ① taps "My account"                                           [A0 IN]
+ └► app/journeys/engine.py            goto("account") → node has requires_auth: true
+     └► app/auth/otp.py               AuthService.is_verified()? no → remembers auth_return = "account"
+ └► engine.goto("auth_email")         input: t("auth.ask_email") "🔒 ... enter the email address registered with us"
+                                                               [A0 OUT]
+ ② types the email (checked by the "email" validator)          [A0 IN]
+ └► engine.goto("auth_send")          action → app/journeys/actions.py send_otp()
+     └► app/auth/otp.py               AuthService.start()
+         └► app/crm/providers.py      find_customer_by_email()  (Customer table, or HubSpot contacts)
+                                      not found → t("auth.not_found") → menu
+         └► app/models.py             OtpCode: hashed 6-digit code, valid 10 min, older codes cancelled
+         └► smtp_delivery()           emails the code (no SMTP_HOST → printed in the log)
+     └► t("auth.otp_sent")            "We've emailed a 6-digit code to j***@example.com"
+                                                               [A0 OUT]
+ ③ types the code                                              [A0 IN]
+ └► engine.goto("auth_verify")        action → actions.py verify_otp() → otp.py AuthService.verify()
+       right  → User.customer_ref + verified_until (24 h) → "Verified ✅" → _return → "account"
+                └► actions.py account_summary() → providers.py get_customer()
+                   → "*Your account* Name / Email / Plan / Status" → menu
+       wrong  → "That code is incorrect. Attempts left: N" (asks again)
+       expired, or 5 wrong → menu
+                                                               [A0 OUT]
+ ④ later types "logout"
+ └► engine command → actions.py logout() → otp.py AuthService.logout() → "You've been signed out." → menu
+ ↳ only the real account holder sees their plan and status; no passwords are ever asked on WhatsApp
+
+
+A14. META RE-SENDS A MESSAGE, OR SENDS DELIVERY / READ RECEIPTS
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ Re-sent message (same message id):
+ └► app/services/conversation.py → app/models.py   Message.wa_message_id is unique → IntegrityError
+     → logged "Duplicate webhook delivery ... ignored" → STOP, nothing sent
+ Receipts ("delivered" / "read" for the bot's own messages):
+ └► app/whatsapp/webhook.py           parse_webhook() finds no messages → nothing queued → 200 OK
+ ↳ a customer never gets the same answer twice
+
+
+A15. SOMETHING BREAKS WHILE ANSWERING   (database down, a bug, an action crashes)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inside an action:
+ └► app/journeys/engine.py            _enter() catches it → t("common.error") → home menu (chat continues)
+ Anywhere else in process_incoming():
+ └► app/db.py                         session_scope() rolls back: nothing half-saved
+ └► app/services/conversation.py      logs it, sends t("common.error") right away
+                                      "Something went wrong on our side 😕 Please try again in a moment."
+ ↳ the customer always gets a reply, even when something fails
+ ⚠ this second case always answers in the default language (the customer's language isn't passed)
+
+
+══════════════════════════════════════════════════════════════════════════════════════════════════
+ PART B: OTHER STARTING POINTS
+══════════════════════════════════════════════════════════════════════════════════════════════════
+
+B1. APP STARTS   (Dockerfile CMD "uvicorn app.main:app" · docker compose up · deploy-client.sh)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/main.py                       lifespan()
+     └► app/config.py                 Settings from .env (+ /opt/bots/shared.env on the server):
+                                      which flow, niche list, knowledge folder, LLM, CRM, database
+     └► production + a "change-me" admin password / JWT secret / verify token → refuses to start
+     └► bootstrap()
+         └► app/services/container.py     get_services() → build_services()
+             └► app/i18n/translator.py    reads locales/<lang>.yaml for each SUPPORTED_LANGUAGES
+             └► app/rag/retriever.py      BM25Retriever (RAG_BACKEND=chroma → ChromaRetriever)
+             └► app/crm/providers.py      build_crm(): local · hubspot · webhook
+             └► app/journeys/engine.py    JourneyEngine.from_yaml(JOURNEY_FILE, ACTIONS)
+                 └► app/journeys/actions.py   ACTIONS
+                                          checks every node name and action name in the YAML
+             └► app/demo/niches.py        load_niches(NICHES_FILE)  (demo only; empty for clients)
+             └► app/auth/otp.py           AuthService with SMTP delivery
+             └► app/llm/assistant.py      AIAssistant: reads SYSTEM_PROMPT_FILE once
+                 └► app/llm/claude.py or app/llm/groq.py   (LLM_PROVIDER)
+         └► app/db.py init_db() → app/models.py    creates missing tables
+         └► not production + no customers → seeds Jane Doe and Raj Patel (to test login)
+         └► app/rag/ingest.py             ingest_directory(KNOWLEDGE_DIR)
+                                          when RAG_REINDEX_ON_STARTUP=true or the knowledge table is empty
+                                          → DocumentChunk rows + retriever.rebuild()
+     └► app/whatsapp/client.py        WhatsAppClient (token + phone number ID set) or ConsoleSender (prints)
+ ↳ edit a price file or the flow, restart, and the bot uses the new version
+ ↳ a typo in a node or action name stops the app here, not in the middle of a customer's chat
+
+
+B2. META VERIFIES THE WEBHOOK   (one-time, when you connect a number in Meta's dashboard)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ Meta → GET /webhook?hub.mode=subscribe&hub.verify_token=...&hub.challenge=...
+ └► app/main.py → app/whatsapp/webhook.py   verify_webhook()
+     └► app/config.py                 token == WHATSAPP_VERIFY_TOKEN? → returns the challenge, else 403
+ ↳ proves to Meta that this server is yours; new-client.sh prints the URL and token to paste
+
+
+B3. HEALTH CHECK
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ Docker HEALTHCHECK (Dockerfile) → GET http://localhost:8000/health
+ └► app/main.py                       health() → {"status": "ok"}
+     deploy-client.sh waits for "healthy"; status.sh shows it in the HEALTH column
+ ↳ tells you a client's bot is up after a deploy
+
+
+B4. ADMIN API: LOGIN   (POST /admin/login, or try every call in the browser at /docs)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/main.py → app/admin/routes.py login()
+     └► app/admin/security.py         check_credentials() against ADMIN_USERNAME / ADMIN_PASSWORD
+                                      create_token() → JWT valid 12 h (JWT_TTL_MINUTES)
+ Every other /admin call:
+ └► app/admin/security.py             require_admin(): needs "Authorization: Bearer <token>", else 401
+ └► app/db.py                         get_db(): one transaction per request
+ ↳ only you and the client's staff can see chats, leads and customers
+
+
+B5. ADMIN API: READ
+    GET /admin/stats · /admin/users[?handoff=true] · /admin/users/{id}/messages
+        /admin/leads · /admin/customers · /admin/knowledge
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/admin/routes.py → app/models.py    User, Message, Lead, Customer, DocumentChunk
+     /admin/users also asks app/auth/otp.py is_verified() for each user
+ ↳ see who is waiting for a human, read a full chat, export leads, check which files the bot knows
+
+
+B6. ADMIN API: REPLY AS A HUMAN   POST /admin/users/{id}/reply  {"text": "..."}
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/admin/routes.py               agent_reply()
+     └► app/whatsapp/client.py        send() → Meta → the customer's WhatsApp
+     └► app/models.py                 Message(sender="agent")
+ ↳ staff answer the customer from the API
+ ⚠ Meta only allows free-text replies within 24 h of the customer's last message
+ ⚠ this does not silence the bot: turn handoff on first (B7) or the bot also answers the next message
+
+
+B7. ADMIN API: TAKE OVER / HAND BACK   POST /admin/users/{id}/handoff?active=true|false
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/admin/routes.py               set_handoff(): User.handoff = active
+     active=false → app/i18n/translator.py t("handoff.ended")
+                  → app/whatsapp/client.py send()  "You're back with the virtual assistant 🤖"
+                  → User.journey_node = home (menu), Message saved
+ ↳ staff can silence the bot for one customer and give the chat back when done
+
+
+B8. ADMIN API: ADD A CUSTOMER   POST /admin/customers  {email, name, plan, status}
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/admin/routes.py               create_customer() → app/models.py Customer (409 if the email exists)
+ ↳ that person can now log in on WhatsApp (A13) and see "My account"
+ ⚠ with CRM_PROVIDER=hubspot, login looks in HubSpot contacts instead of this table
+
+
+B9. ADMIN API: UPDATE KNOWLEDGE   POST /admin/knowledge/upload (.md/.txt/.pdf) · POST /admin/knowledge/reindex
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/admin/routes.py               upload_knowledge(): saves the file in KNOWLEDGE_DIR (top folder)
+     └► _reindex() → app/rag/ingest.py ingest_directory()
+         deletes all chunks, re-reads every file, splits them → app/models.py DocumentChunk
+         └► app/rag/retriever.py      rebuild(): the running bot uses the new text immediately
+ ↳ the client sends a new price list → upload → the bot quotes the new prices, no restart
+ ⚠ demo: an uploaded file lands in demo/knowledge/ (top folder), so every niche's AI can see it
+
+
+B10. scripts/chat_cli.py   python scripts/chat_cli.py [--demo] [--offline]
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► --demo → app/demo/__init__.py     DEMO_ENV: demo flow, niches, knowledge, prompt, data/demo.db
+ └► app/services/container.py         build_services(llm=OfflineLLM with --offline: shows the found excerpt)
+ └► app/main.py                       bootstrap()  (same as B1, without the web server)
+ └► sends "hi" for you; typing "1" or a button title becomes a tap (reply_id), like WhatsApp
+ └► app/services/conversation.py      process_incoming() → same as PART A from here
+ └► app/whatsapp/client.py            ConsoleSender prints the replies
+ ↳ rehearse a client demo or test a flow change without WhatsApp; /reset starts over as a new customer
+
+
+B11. scripts/ingest.py   python scripts/ingest.py [--dir knowledge]
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► app/config.py → app/db.py init_db() → app/services/container.py get_services()
+ └► app/rag/ingest.py                 ingest_directory() → DocumentChunk rows; prints chunks per file
+ ↳ rebuild the knowledge table by hand
+ ⚠ a server that is already running keeps its in-memory search index until restart; B9 avoids that
+
+
+B12. pytest
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ └► tests/conftest.py                 temp SQLite, fake LLM, recording sender, client-template settings
+ └► tests/test_*.py                   call process_incoming() directly, or the API through FastAPI TestClient
+                                      (tests/test_webhook_and_api.py)
+ ↳ run before deploying; tests/test_demo.py checks every niche fits WhatsApp limits and has knowledge files
+
+
+B13. SERVER SCRIPTS   (deploy/scripts/*.sh, run on the VPS; folder layout in deploy/scripts/lib.sh)
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ setup-server.sh (once)        firewall (ufw, or iptables on Oracle Cloud) → Docker → /opt/bots
+                               → Caddy files + "web" network → build-image.sh → nightly backup cron (02:30)
+ new-client.sh id "Name" [domain]
+   └► copies deploy/client-template/docker-compose.yml, locales/, app/journeys/flows/main.yaml
+      and prompts/system_prompt.md into /opt/bots/clients/<id>/
+   └► writes .env from deploy/client-template/.env.template with fresh secrets
+   └► writes /opt/bots/caddy/sites/<id>.caddy: https://<domain> → bot-<id>:8000
+   └► prints the Meta webhook URL + verify token (B2) and the admin password
+ deploy-client.sh id [tag]     docker compose up -d → B1 → Caddy reload → waits for healthy (B3)
+ build-image.sh [--pull]       builds the shared ai2-bot image (running bots don't change)
+ update-all.sh [tag]           deploy-client.sh for every client
+ backup.sh [id]                pg_dump + client folder → /opt/bots/backups (kept 14 days) → optional rclone copy
+ remove-client.sh id           final backup, stops the bot, moves its folder to /opt/bots/archive
+ status.sh                     version, health and URL per client, plus memory use
+ ↳ one server runs many client bots, each with its own folder, .env, database and domain
